@@ -1,0 +1,308 @@
+/* =========================================
+   استدعاء الخطوط من جوجل
+   خط IBM Plex Sans Arabic للغة العربية
+   خط Rye للأرقام أو العناوين الإنجليزية
+========================================= */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=Rye&display=swap');
+
+/* =========================================
+   المتغيرات (الألوان الأساسية للعبة)
+========================================= */
+:root {
+    --wood-dark: #2C1A14;     /* خشب داكن جداً للنصوص والحدود */
+    --wood-medium: #5D4037;   /* خشب متوسط */
+    --wood-light: #8D6E63;    /* خشب فاتح */
+    --paper-bg: #F4E4BC;      /* لون الورق القديم (الخلفية) */
+    --paper-dark: #DCB37B;    /* ورق أغمق للأزرار */
+    --blood-red: #8B0000;     /* أحمر دموي للمافيا والأخطاء */
+    --safe-green: #2E7D32;    /* أخضر للنجاة */
+    --bg-outside: #120A07;    /* لون الخلفية خارج الهاتف */
+}
+
+/* =========================================
+   إعدادات عامة
+========================================= */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'IBM Plex Sans Arabic', sans-serif; /* تطبيق خط IBM */
+}
+
+body {
+    background-color: var(--bg-outside);
+    background-image: radial-gradient(circle, #2a1a12 0%, #120a07 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: var(--wood-dark);
+    /* منع التحديد العشوائي للنصوص أثناء اللعب */
+    user-select: none; 
+}
+
+/* =========================================
+   حاوية الهاتف (شاشة اللعب)
+========================================= */
+#game-container {
+    background-color: var(--paper-bg);
+    /* تأثير ورق قديم خفيف */
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(93, 64, 55, 0.05) 10px, rgba(93, 64, 55, 0.05) 20px);
+    width: 100%;
+    max-width: 450px;
+    height: 100vh;
+    max-height: 850px;
+    position: relative;
+    overflow-y: auto;
+    box-shadow: 0 0 30px rgba(0,0,0,0.9);
+    border: 8px solid var(--wood-dark);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+/* =========================================
+   العناوين والنصوص
+========================================= */
+h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--wood-dark);
+    border-bottom: 3px double var(--wood-dark);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+/* إضافة إيموجي قبل وبعد العنوان الرئيسي */
+h1::before { content: "🏜️ "; }
+h1::after { content: " 🏜️"; }
+
+h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+h3 {
+    font-size: 1.4rem;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 25px;
+    color: var(--wood-medium);
+}
+
+.highlight {
+    color: var(--blood-red);
+    font-size: 2rem;
+    font-weight: 700;
+    display: block;
+    margin-top: 10px;
+    text-shadow: 1px 1px 0px #fff;
+}
+
+.highlight-small {
+    color: var(--blood-red);
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+/* =========================================
+   إخفاء الشاشات وتأثير الظهور
+========================================= */
+.hidden { display: none !important; }
+
+.screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    flex: 1;
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* =========================================
+   المدخلات (Inputs) والقوائم
+========================================= */
+.input-group {
+    width: 100%;
+    margin-bottom: 20px;
+    text-align: right;
+}
+
+.input-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+.name-input-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+input[type="text"], select {
+    flex: 1;
+    padding: 12px;
+    font-size: 1.1rem;
+    border: 2px solid var(--wood-medium);
+    background-color: #FFF9E6;
+    border-radius: 5px;
+    outline: none;
+    color: var(--wood-dark);
+    font-weight: 500;
+}
+
+input[type="text"]:focus, select:focus {
+    border-color: var(--blood-red);
+}
+
+/* =========================================
+   قائمة اللاعبين والإحصائيات
+========================================= */
+#players-list {
+    list-style: none;
+    background: var(--paper-dark);
+    border: 2px solid var(--wood-medium);
+    border-radius: 5px;
+    max-height: 140px;
+    overflow-y: auto;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+#players-list li {
+    padding: 8px 10px;
+    border-bottom: 1px dashed var(--wood-medium);
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+}
+#players-list li:last-child { border-bottom: none; }
+
+.player-count-info {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--wood-medium);
+    text-align: left;
+}
+
+/* =========================================
+   الأزرار (تصميم الريترو / المطلوبين)
+========================================= */
+button {
+    background-color: var(--paper-dark);
+    color: var(--wood-dark);
+    border: 2px solid var(--wood-dark);
+    border-radius: 5px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 4px 4px 0px var(--wood-dark);
+    transition: all 0.1s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+button:active {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0px var(--wood-dark);
+}
+
+.main-btn {
+    background-color: var(--wood-dark);
+    color: var(--paper-bg);
+    width: 100%;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.small-btn {
+    padding: 0 15px;
+    font-size: 1.5rem;
+    background-color: var(--wood-medium);
+    color: var(--paper-bg);
+}
+
+/* أزرار الخيارات المتغيرة (من يقتل؟ من يصوت؟) */
+.option-btn {
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0;
+    background-color: #FFF9E6;
+    border: 2px dashed var(--wood-medium);
+    color: var(--wood-dark);
+    font-size: 1.1rem;
+    text-align: right;
+}
+
+.option-btn.selected {
+    background-color: var(--wood-medium);
+    color: var(--paper-bg);
+    border-style: solid;
+    border-color: var(--wood-dark);
+}
+
+/* =========================================
+   الصناديق التنبيهية والإخبارية
+========================================= */
+.warning-box {
+    background-color: rgba(139, 0, 0, 0.1);
+    border: 2px dashed var(--blood-red);
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 5px;
+    font-weight: 700;
+    color: var(--blood-red);
+    font-size: 1.1rem;
+}
+
+.news-box {
+    background-color: #FFF9E6;
+    border: 3px double var(--wood-medium);
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 5px;
+    font-weight: 700;
+    font-size: 1.2rem;
+    line-height: 1.6;
+}
+
+.stats-box {
+    width: 100%;
+    background-color: var(--paper-dark);
+    border: 2px solid var(--wood-medium);
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 5px;
+}
+
+.error-text {
+    color: var(--blood-red);
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-align: right;
+}
+
+.dynamic-content {
+    width: 100%;
+    max-height: 350px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding: 5px;
+}

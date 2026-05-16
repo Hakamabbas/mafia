@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>مافيا: الغرب المتوحش</title>
+    <!-- خطوط جوجل: خط للغة الإنجليزية/الأرقام بطابع غربي، وخط تجوال للغة العربية -->
+    <link href="https://fonts.googleapis.com/css2?family=Rye&family=Tajawal:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        
+        <!-- ==========================================
+             1. شاشة البداية والإعداد (إضافة اللاعبين)
+        =========================================== -->
+        <div id="setup-screen" class="screen">
+            <h1>بلدة الموتى</h1>
+            <p class="subtitle">لعبة مافيا - الغرب المتوحش</p>
+            
+            <div class="input-group">
+                <label for="player-name-input">أدخل أسماء اللاعبين:</label>
+                <div class="name-input-container">
+                    <input type="text" id="player-name-input" placeholder="اسم اللاعب (مثال: أحمد)..." autocomplete="off">
+                    <button id="add-player-btn" class="small-btn">+</button>
+                </div>
+                <!-- رسالة خطأ تظهر عند إدخال اسم مكرر أو فارغ -->
+                <p id="setup-error-msg" class="error-text hidden"></p> 
+                <ul id="players-list"></ul>
+                <p class="player-count-info">عدد اللاعبين الحالي: <span id="player-count-display">0</span></p>
+            </div>
+
+            <div class="input-group">
+                <label for="mafia-count">عدد المافيا المطلوب:</label>
+                <select id="mafia-count">
+                    <option value="1">1 مافيا</option>
+                    <option value="2">2 مافيا</option>
+                    <option value="3">3 مافيا</option>
+                </select>
+            </div>
+
+            <button id="start-game-btn" class="main-btn">ابدأ اللعبة</button>
+        </div>
+
+        <!-- ==========================================
+             2. شاشة تمرير الهاتف (تستخدم لليل والنهار)
+        =========================================== -->
+        <div id="pass-phone-screen" class="screen hidden">
+            <h2 id="pass-phone-title">حان دورك!</h2>
+            <h3 class="pass-phone-text">أعطِ الهاتف للاعب: <br><span id="target-player-name" class="highlight">...</span></h3>
+            
+            <div class="warning-box">
+                ⚠️ تأكد أن لا أحد يختلس النظر لشاشتك!
+            </div>
+            
+            <button id="ready-btn" class="main-btn">أنا <span id="ready-player-name">...</span> ومستعد</button>
+        </div>
+
+        <!-- ==========================================
+             3. شاشة تنفيذ الدور (في الليل)
+        =========================================== -->
+        <div id="action-screen" class="screen hidden">
+            <h2 id="role-title">دورك: ...</h2>
+            <p id="role-description">وصف المهمة...</p>
+            
+            <!-- سيتم توليد الأزرار (أو المسألة الحسابية) هنا برمجياً بواسطة JS -->
+            <div id="action-content" class="dynamic-content"></div> 
+            
+            <button id="confirm-action-btn" class="main-btn hidden">تأكيد الاختيار</button>
+        </div>
+
+        <!-- ==========================================
+             4. شاشة الصباح (نتائج الليل)
+        =========================================== -->
+        <div id="morning-screen" class="screen hidden">
+            <h2>أشرقت الشمس ☀️</h2>
+            <div class="news-box">
+                <p id="morning-news">حدث ما لم يكن بالحسبان...</p>
+            </div>
+            <button id="start-voting-phase-btn" class="main-btn">الذهاب لساحة الإعدام (التصويت)</button>
+        </div>
+
+        <!-- ==========================================
+             5. شاشة التصويت (للاختيار الفردي في النهار)
+        =========================================== -->
+        <div id="voting-screen" class="screen hidden">
+            <h2>وقت المحاكمة</h2>
+            <p class="subtitle">اللاعب المُصوِّت: <span id="voting-player-name" class="highlight-small">...</span></p>
+            <p>اختر من تعتقد أنه المافيا لطرده من البلدة:</p>
+            
+            <!-- قائمة اللاعبين الأحياء للتصويت عليهم -->
+            <div id="voting-content" class="dynamic-content"></div>
+            
+            <button id="confirm-vote-btn" class="main-btn hidden">تأكيد التصويت</button>
+        </div>
+
+        <!-- ==========================================
+             6. شاشة نتيجة التصويت (نهاية النهار)
+        =========================================== -->
+        <div id="voting-results-screen" class="screen hidden">
+            <h2>قرار البلدة</h2>
+            <div class="news-box">
+                <p id="voting-news">القرار هو...</p>
+            </div>
+            
+            <!-- تظهر هذه الأزرار بناءً على حالة التعادل أو الحسم -->
+            <button id="continue-to-night-btn" class="main-btn hidden">دخول الليل</button>
+            <button id="revote-btn" class="main-btn hidden">إعادة التصويت</button>
+        </div>
+
+        <!-- ==========================================
+             7. شاشة نهاية اللعبة (الفوز أو الخسارة)
+        =========================================== -->
+        <div id="game-over-screen" class="screen hidden">
+            <h1 id="winner-title">انتهت اللعبة!</h1>
+            <p id="winner-text" class="highlight">فاز فريق...</p>
+            
+            <div class="stats-box">
+                <h3>البقاء للأقوى</h3>
+                <ul id="survivors-list"></ul>
+            </div>
+
+            <button id="restart-btn" class="main-btn">لعب جولة جديدة</button>
+        </div>
+
+    </div>
+
+    <!-- ربط ملف الجافاسكربت -->
+    <script src="script.js"></script>
+</body>
+</html>
