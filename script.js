@@ -1,5 +1,5 @@
 /* ========================================================
-   1. تعريف المتغيرات والأدوار الجديدة
+   1. تعريف المتغيرات والأدوار
 ======================================================== */
 const ROLES = {
     MAFIA: 'مافيا 🔪',
@@ -18,7 +18,7 @@ let currentTurnIndex = 0;
 let currentPhase = '';       
 
 let nightActions = {
-    mafiaTarget: null,
+    mafiaVotes: [], // تحول لمصفوفة لتخزين أصوات جميع أفراد المافيا
     nurseTarget: null,
     sniperTarget: null
 };
@@ -26,6 +26,7 @@ let nightActions = {
 let votes = {};
 let sniperShotUsed = false;  
 let selectedOption = null;   
+let pendingExecutionTarget = null; // تخزين اللاعب المطلوب إعدامه مؤقتاً للتأكيد
 
 const screens = {
     setup: document.getElementById('setup-screen'),
@@ -60,7 +61,6 @@ function addPlayer() {
     if (players.some(p => p.name === name)) return showError('هذا الاسم موجود مسبقاً!');
     
     players.push({ name: name, role: null, isAlive: true });
-    
     const li = document.createElement('li');
     li.textContent = name;
     
@@ -87,29 +87,19 @@ function updatePlayerCount() { playerCountDisplay.textContent = players.length; 
 function showError(msg) { setupErrorMsg.textContent = msg; setupErrorMsg.classList.remove('hidden'); }
 
 /* ========================================================
-   3. بدء اللعبة وتوزيع الأدوار الجديدة
+   3. بدء اللعبة وتوزيع الأدوار
 ======================================================== */
 document.getElementById('start-game-btn').addEventListener('click', () => {
     const mafiaCount = parseInt(document.getElementById('mafia-count').value);
-    
-    // التحقق من الشخصيات الإضافية
     const useMayor = document.getElementById('role-mayor').checked;
     const useBandit = document.getElementById('role-bandit').checked;
     const useSheriff = document.getElementById('role-sheriff').checked;
     const useBomber = document.getElementById('role-bomber').checked;
 
-    let extraRoles = 0;
-    if(useMayor) extraRoles++;
-    if(useBandit) extraRoles++;
-    if(useSheriff) extraRoles++;
-    if(useBomber) extraRoles++;
-
-    // مافيا + ممرضة + قناص + أدوار إضافية + 1 مواطن على الأقل
+    let extraRoles = (useMayor?1:0) + (useBandit?1:0) + (useSheriff?1:0) + (useBomber?1:0);
     const minPlayers = mafiaCount + 2 + extraRoles + 1; 
 
-    if (players.length < minPlayers) {
-        return showError(`بهذه الإعدادات، تحتاج إلى ${minPlayers} لاعبين على الأقل.`);
-    }
+    if (players.length < minPlayers) return showError(`تحتاج إلى ${minPlayers} لاعبين على الأقل.`);
 
     assignRoles(mafiaCount, useMayor, useBandit, useSheriff, useBomber);
     startNightPhase();
@@ -117,7 +107,6 @@ document.getElementById('start-game-btn').addEventListener('click', () => {
 
 function assignRoles(mafiaCount, useMayor, useBandit, useSheriff, useBomber) {
     let rolesArray = [];
-    
     for (let i = 0; i < mafiaCount; i++) rolesArray.push(ROLES.MAFIA);
     rolesArray.push(ROLES.NURSE);
     rolesArray.push(ROLES.SNIPER);
@@ -127,15 +116,12 @@ function assignRoles(mafiaCount, useMayor, useBandit, useSheriff, useBomber) {
     if(useSheriff) rolesArray.push(ROLES.SHERIFF);
     if(useBomber) rolesArray.push(ROLES.BOMBER);
     
-    while (rolesArray.length < players.length) {
-        rolesArray.push(ROLES.CITIZEN);
-    }
+    while (rolesArray.length < players.length) rolesArray.push(ROLES.CITIZEN);
 
     for (let i = rolesArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [rolesArray[i], rolesArray[j]] = [rolesArray[j], rolesArray[i]];
     }
-
     players.forEach((p, index) => p.role = rolesArray[index]);
 }
 
@@ -146,24 +132,33 @@ function startNightPhase() {
     currentPhase = 'NIGHT';
     alivePlayers = players.filter(p => p.isAlive);
     currentTurnIndex = 0;
-    nightActions = { mafiaTarget: null, nurseTarget: null, sniperTarget: null };
+    nightActions = { mafiaVotes: [], nurseTarget: null, sniperTarget: null };
     nextTurn();
 }
 
 function nextTurn() {
     selectedOption = null;
     if (currentTurnIndex < alivePlayers.length) {
+        // دور لاعب عادي
         const currentPlayer = alivePlayers[currentTurnIndex];
         document.getElementById('target-player-name').textContent = currentPlayer.name;
         document.getElementById('ready-player-name').textContent = currentPlayer.name;
         showScreen('passPhone');
     } else {
-        processNightResults();
+        // انتهى الدور لجميع اللاعبين، إرجاع الهاتف للاعب الأول (المدير/أول شخص حي)
+        currentPhase = currentPhase === 'NIGHT' ? 'NIGHT_RESULTS' : 'DAY_RESULTS';
+        const firstAlivePlayer = alivePlayers[0];
+        document.getElementById('target-player-name').textContent = firstAlivePlayer.name + " (لإعلان النتائج)";
+        document.getElementById('ready-player-name').textContent = firstAlivePlayer.name;
+        showScreen('passPhone');
     }
 }
 
 document.getElementById('ready-btn').addEventListener('click', () => {
-    currentPhase === 'NIGHT' ? showNightActionScreen() : showVotingScreenForPlayer();
+    if (currentPhase === 'NIGHT') showNightActionScreen();
+    else if (currentPhase === 'DAY') showVotingScreenForPlayer();
+    else if (currentPhase === 'NIGHT_RESULTS') processNightResults();
+    else if (currentPhase === 'DAY_RESULTS') processVotingResults();
 });
 
 function showNightActionScreen() {
@@ -172,18 +167,33 @@ function showNightActionScreen() {
     const roleDesc = document.getElementById('role-description');
     const actionContent = document.getElementById('action-content');
     const confirmBtn = document.getElementById('confirm-action-btn');
+    const mafiaInfoBox = document.getElementById('mafia-info-box');
     
     actionContent.innerHTML = '';
+    mafiaInfoBox.innerHTML = '';
+    mafiaInfoBox.classList.add('hidden');
     confirmBtn.classList.add('hidden');
     roleTitle.textContent = `دورك: ${currentPlayer.role}`;
 
-    // المافيا أو زعيم العصابة يختارون ضحية
+    // المافيا أو زعيم العصابة
     if (currentPlayer.role === ROLES.MAFIA || currentPlayer.role === ROLES.BANDIT) {
         roleDesc.textContent = "اختر ضحيتك لهذه الليلة:";
+        
+        // إظهار زملاء المافيا وقراراتهم السابقة
+        const teammates = alivePlayers.filter(p => (p.role === ROLES.MAFIA || p.role === ROLES.BANDIT) && p.name !== currentPlayer.name);
+        let infoHtml = '';
+        if (teammates.length > 0) infoHtml += `حلفاؤك الأشرار: <b>${teammates.map(t=>t.name).join('، ')}</b><br>`;
+        if (nightActions.mafiaVotes.length > 0) infoHtml += `اختيارات حلفائك السابقة: <b>${nightActions.mafiaVotes.join('، ')}</b>`;
+        
+        if (infoHtml !== '') {
+            mafiaInfoBox.innerHTML = infoHtml;
+            mafiaInfoBox.classList.remove('hidden');
+        }
+
         createPlayerOptions(alivePlayers.filter(p => p.name !== currentPlayer.name), actionContent, confirmBtn);
     } 
     else if (currentPlayer.role === ROLES.NURSE) {
-        roleDesc.textContent = "من تريد أن تحمي من القتل هذه الليلة؟";
+        roleDesc.textContent = "من تريد حمايته الليلة؟";
         createPlayerOptions(alivePlayers, actionContent, confirmBtn);
     } 
     else if (currentPlayer.role === ROLES.SNIPER) {
@@ -195,14 +205,12 @@ function showNightActionScreen() {
             createPlayerOptions(alivePlayers.filter(p => p.name !== currentPlayer.name), actionContent, confirmBtn, true);
         }
     } 
-    // الشريف (المحقق)
     else if (currentPlayer.role === ROLES.SHERIFF) {
-        roleDesc.textContent = "اختر لاعباً للتحقيق في هويته (ستعرف إن كان من الأشرار أم لا):";
+        roleDesc.textContent = "اختر لاعباً للتحقيق في هويته:";
         createPlayerOptions(alivePlayers.filter(p => p.name !== currentPlayer.name), actionContent, confirmBtn);
     }
-    // المواطن، العمدة، أو المفجر يحلون مسألة لتمرير الوقت
     else {
-        roleDesc.textContent = "حل هذه المسألة ليمر الوقت دون إثارة الشبهات:";
+        roleDesc.textContent = "حل هذه المسألة ليمر الوقت:";
         createMathProblem(actionContent, confirmBtn);
     }
 
@@ -266,8 +274,9 @@ function createMathProblem(container, confirmBtn) {
 document.getElementById('confirm-action-btn').addEventListener('click', () => {
     const currentPlayer = alivePlayers[currentTurnIndex];
     
+    // إضافة تصويت المافيا للمصفوفة
     if ((currentPlayer.role === ROLES.MAFIA || currentPlayer.role === ROLES.BANDIT) && selectedOption !== 'SKIP') {
-        nightActions.mafiaTarget = selectedOption;
+        nightActions.mafiaVotes.push(selectedOption);
     }
     if (currentPlayer.role === ROLES.NURSE && selectedOption !== 'SKIP') nightActions.nurseTarget = selectedOption;
     if (currentPlayer.role === ROLES.SNIPER && selectedOption !== 'SKIP') {
@@ -275,11 +284,10 @@ document.getElementById('confirm-action-btn').addEventListener('click', () => {
         sniperShotUsed = true;
     }
     
-    // إظهار نتيجة التحقيق للشريف فوراً قبل تمرير الهاتف
     if (currentPlayer.role === ROLES.SHERIFF && selectedOption !== 'SKIP') {
         const target = players.find(p => p.name === selectedOption);
         const isEvil = (target.role === ROLES.MAFIA || target.role === ROLES.BANDIT);
-        alert(`نتائج التحقيق السري 🕵️‍♂️:\nاللاعب (${selectedOption}) هو: ${isEvil ? 'شرير / مافيا 🔪' : 'بريء 👨‍🌾'}`);
+        alert(`نتائج التحقيق السري 🕵️‍♂️:\nاللاعب (${selectedOption}) هو: ${isEvil ? 'شرير 🔪' : 'بريء 👨‍🌾'}`);
     }
 
     currentTurnIndex++;
@@ -287,29 +295,40 @@ document.getElementById('confirm-action-btn').addEventListener('click', () => {
 });
 
 /* ========================================================
-   5. معالجة نتائج الليل وشاشة الصباح
+   5. معالجة نتائج الليل
 ======================================================== */
 function processNightResults() {
     let deadThisNight = [];
     let newsMessage = "";
+    
+    // تحديد ضحية المافيا النهائية بناءً على تصويتهم
+    let finalMafiaTarget = null;
+    if (nightActions.mafiaVotes.length > 0) {
+        // هل اتفقوا جميعاً على نفس الشخص؟
+        const allAgree = nightActions.mafiaVotes.every(val => val === nightActions.mafiaVotes[0]);
+        if (allAgree) {
+            finalMafiaTarget = nightActions.mafiaVotes[0];
+        } else {
+            // إذا اختلفوا، اللعبة تختار شخصاً عشوائياً من بين اختياراتهم
+            finalMafiaTarget = nightActions.mafiaVotes[Math.floor(Math.random() * nightActions.mafiaVotes.length)];
+        }
+    }
 
-    // المافيا تقتل
-    if (nightActions.mafiaTarget) {
-        if (nightActions.mafiaTarget !== nightActions.nurseTarget) {
-            deadThisNight.push(nightActions.mafiaTarget);
-            newsMessage += `تم العثور على 💀 ${nightActions.mafiaTarget} مقتولاً في ظروف غامضة.<br>`;
+    if (finalMafiaTarget) {
+        if (finalMafiaTarget !== nightActions.nurseTarget) {
+            deadThisNight.push(finalMafiaTarget);
+            newsMessage += `تم العثور على 💀 ${finalMafiaTarget} مقتولاً في ظروف غامضة.<br>`;
         } else {
             newsMessage += `حاول الأشرار القتل، لكن الممرضة 💊 تدخلت وأنقذت الضحية!<br>`;
         }
     }
 
-    // القناص يضرب
     if (nightActions.sniperTarget && nightActions.sniperTarget !== 'SKIP') {
         const targetPlayer = players.find(p => p.name === nightActions.sniperTarget);
         const sniperPlayer = players.find(p => p.role === ROLES.SNIPER);
 
         if (targetPlayer.role === ROLES.BANDIT) {
-            newsMessage += `سُمع صوت رصاصة قناص 🎯، لكن الهدف كان (زعيم العصابة) ونجا بفضل درعه!<br>`;
+            newsMessage += `سُمع صوت رصاصة 🎯، لكن الهدف (زعيم العصابة) نجا بفضل درعه!<br>`;
         } else if (targetPlayer.role === ROLES.MAFIA) {
             if (nightActions.sniperTarget !== nightActions.nurseTarget && !deadThisNight.includes(targetPlayer.name)) {
                 deadThisNight.push(targetPlayer.name);
@@ -318,22 +337,20 @@ function processNightResults() {
         } else {
             if (sniperPlayer && !deadThisNight.includes(sniperPlayer.name)) {
                 deadThisNight.push(sniperPlayer.name);
-                newsMessage += `أخطأ القناص 🎯 هدفه وصوب على شخص بريء، فانتحر لشعوره بالعار!<br>`;
+                newsMessage += `أخطأ القناص 🎯 هدفه وصوب على بريء، فانتحر لشعوره بالعار!<br>`;
             }
         }
     }
 
-    // قدرة حامل الديناميت
     const bomber = players.find(p => p.role === ROLES.BOMBER);
     if (bomber && deadThisNight.includes(bomber.name)) {
-        // إذا مات المفجر، نختار أحد الأشرار الأحياء ليموت معه
         const aliveEvils = players.filter(p => p.isAlive && !deadThisNight.includes(p.name) && (p.role === ROLES.MAFIA || p.role === ROLES.BANDIT));
         if (aliveEvils.length > 0) {
             const randomEvil = aliveEvils[Math.floor(Math.random() * aliveEvils.length)];
             deadThisNight.push(randomEvil.name);
-            newsMessage += `💥 كارثة! قتلت المافيا (حامل الديناميت)، فانفجر المكان ومات معه الشرير ${randomEvil.name}!<br>`;
+            newsMessage += `💥 قُتل (حامل الديناميت)، فانفجر المكان ومات معه الشرير ${randomEvil.name}!<br>`;
         } else {
-            newsMessage += `💥 قتلت المافيا (حامل الديناميت)، وانفجر المكان بشكل مروع!<br>`;
+            newsMessage += `💥 قُتل (حامل الديناميت)، وانفجر المكان بشكل مروع!<br>`;
         }
     }
 
@@ -350,7 +367,7 @@ function processNightResults() {
 }
 
 /* ========================================================
-   6. مرحلة النهار والتصويت (وقدرة العمدة)
+   6. مرحلة النهار والتصويت وتأكيد الإعدام
 ======================================================== */
 document.getElementById('start-voting-phase-btn').addEventListener('click', startVotingPhase);
 
@@ -404,16 +421,11 @@ function showVotingScreenForPlayer() {
 document.getElementById('confirm-vote-btn').addEventListener('click', () => {
     const currentPlayer = alivePlayers[currentTurnIndex];
     if (selectedOption !== 'SKIP') {
-        // العمدة صوته بـ 2 !
-        if (currentPlayer.role === ROLES.MAYOR) {
-            votes[selectedOption] += 2;
-        } else {
-            votes[selectedOption] += 1;
-        }
+        if (currentPlayer.role === ROLES.MAYOR) votes[selectedOption] += 2;
+        else votes[selectedOption] += 1;
     }
-    
     currentTurnIndex++;
-    currentTurnIndex < alivePlayers.length ? nextTurn() : processVotingResults();
+    nextTurn();
 });
 
 function processVotingResults() {
@@ -426,30 +438,48 @@ function processVotingResults() {
     }
 
     const newsElement = document.getElementById('voting-news');
-    const continueBtn = document.getElementById('continue-to-night-btn');
-    const revoteBtn = document.getElementById('revote-btn');
     
-    continueBtn.classList.add('hidden');
-    revoteBtn.classList.add('hidden');
+    // إخفاء كل الأزرار الممكنة أولاً
+    document.getElementById('continue-to-night-btn').classList.add('hidden');
+    document.getElementById('revote-btn').classList.add('hidden');
+    document.getElementById('confirm-execution-btn').classList.add('hidden');
+    document.getElementById('cancel-execution-btn').classList.add('hidden');
 
     if (maxVotes === 0) {
         newsElement.innerHTML = "امتنع الجميع عن التصويت. لن يُعدم أحد اليوم! ⚖️";
-        continueBtn.classList.remove('hidden');
+        document.getElementById('continue-to-night-btn').classList.remove('hidden');
     } else if (candidates.length > 1) {
         newsElement.innerHTML = `تعادلت الأصوات بين: ${candidates.join(' و ')}.<br>القانون يقتضي إعادة التصويت! ⚖️`;
-        revoteBtn.classList.remove('hidden');
+        document.getElementById('revote-btn').classList.remove('hidden');
     } else {
-        const executedPlayer = candidates[0];
-        const pIndex = players.findIndex(p => p.name === executedPlayer);
-        players[pIndex].isAlive = false;
-        newsElement.innerHTML = `تم إعدام 🪢 ${executedPlayer}.<br>كان دوره: ${players[pIndex].role}.`;
-        continueBtn.classList.remove('hidden');
+        // هنا نطلب التأكيد قبل الإعدام
+        pendingExecutionTarget = candidates[0];
+        newsElement.innerHTML = `قررت أغلبية البلدة إعدام <b>${pendingExecutionTarget}</b>.<br>هل تؤكدون هذا القرار النهائي؟ ⚖️`;
+        document.getElementById('confirm-execution-btn').classList.remove('hidden');
+        document.getElementById('cancel-execution-btn').classList.remove('hidden');
     }
 
     showScreen('votingResults');
-    if (checkWinCondition()) return;
 }
 
+// أزرار شاشة التصويت
+document.getElementById('confirm-execution-btn').addEventListener('click', () => {
+    // تنفيذ الإعدام
+    const pIndex = players.findIndex(p => p.name === pendingExecutionTarget);
+    players[pIndex].isAlive = false;
+    
+    document.getElementById('voting-news').innerHTML = `تم إعدام 🪢 ${pendingExecutionTarget}.<br>كان دوره: ${players[pIndex].role}.`;
+    
+    // إخفاء أزرار التأكيد وإظهار زر الدخول لليل
+    document.getElementById('confirm-execution-btn').classList.add('hidden');
+    document.getElementById('cancel-execution-btn').classList.add('hidden');
+    
+    if (!checkWinCondition()) {
+        document.getElementById('continue-to-night-btn').classList.remove('hidden');
+    }
+});
+
+document.getElementById('cancel-execution-btn').addEventListener('click', startVotingPhase); // إعادة التصويت
 document.getElementById('continue-to-night-btn').addEventListener('click', startNightPhase);
 document.getElementById('revote-btn').addEventListener('click', startVotingPhase);
 
@@ -457,7 +487,6 @@ document.getElementById('revote-btn').addEventListener('click', startVotingPhase
    7. شروط الفوز
 ======================================================== */
 function checkWinCondition() {
-    // الأشرار هم المافيا وزعيم العصابة
     const aliveEvils = players.filter(p => p.isAlive && (p.role === ROLES.MAFIA || p.role === ROLES.BANDIT)).length;
     const aliveGoodGuys = players.filter(p => p.isAlive && p.role !== ROLES.MAFIA && p.role !== ROLES.BANDIT).length;
 
