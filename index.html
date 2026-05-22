@@ -60,6 +60,10 @@
         <!-- شاشة تنفيذ الدور -->
         <div id="action-screen" class="screen hidden">
             <h2 id="role-title">دورك: ...</h2>
+            
+            <!-- صندوق معلومات المافيا الجديد (لمعرفة الحلفاء وقراراتهم) -->
+            <div id="mafia-info-box" class="info-box hidden"></div>
+
             <p id="role-description">وصف المهمة...</p>
             <div id="action-content" class="dynamic-content"></div> 
             <button id="confirm-action-btn" class="main-btn hidden">تأكيد الاختيار</button>
@@ -81,11 +85,16 @@
             <button id="confirm-vote-btn" class="main-btn hidden">تأكيد التصويت</button>
         </div>
 
-        <!-- نتيجة التصويت -->
+        <!-- نتيجة التصويت وتأكيد الإعدام -->
         <div id="voting-results-screen" class="screen hidden">
             <h2>قرار البلدة</h2>
             <div class="news-box"><p id="voting-news">القرار هو...</p></div>
-            <button id="continue-to-night-btn" class="main-btn hidden">دخول الليل</button>
+            
+            <!-- أزرار التأكيد وإعادة التصويت -->
+            <button id="confirm-execution-btn" class="main-btn hidden" style="background-color: var(--blood-red); color: white;">تأكيد الإعدام 🪢</button>
+            <button id="cancel-execution-btn" class="main-btn hidden">إلغاء وإعادة التصويت</button>
+            
+            <button id="continue-to-night-btn" class="main-btn hidden">دخول الليل 🌙</button>
             <button id="revote-btn" class="main-btn hidden">إعادة التصويت</button>
         </div>
 
