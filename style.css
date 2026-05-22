@@ -335,4 +335,20 @@ input[type="checkbox"] {
     accent-color: var(--blood-red);
     cursor: pointer;
 }
+/* =========================================
+   صندوق المعلومات (للمافيا)
+========================================= */
+.info-box {
+    background-color: rgba(139, 0, 0, 0.1);
+    border: 2px dashed var(--blood-red);
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--blood-red);
+    text-align: right;
+    line-height: 1.5;
+    width: 100%;
+}
 
